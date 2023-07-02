@@ -1,35 +1,15 @@
 import React, { useState } from "react";
 import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
-import { BsThreeDots } from 'react-icons/bs'
+import { AiFillDelete, AiFillEdit } from "react-icons/ai";
+import './App.css'
 
 function App() {
   var uuid = require('uuid-v4')
-
-  const [itemsFromBackend, setItemsFromBackend] = useState([
-  ]);
-  const columnsFromBackend = {
-    [uuid()]: {
-      name: "Requested",
-      items: []
-    },
-    [uuid()]: {
-      name: "To do",
-      items: []
-    },
-    [uuid()]: {
-      name: "In Progress",
-      items: []
-    },
-    [uuid()]: {
-      name: "Done",
-      items: []
-    }
-  };
-
+  const [cards, setCards] = useState([]);
+  const [columns, setColumns] = useState({});
   const onDragEnd = (result, columns, setColumns) => {
     if (!result.destination) return;
     const { source, destination } = result;
-
     if (source.droppableId !== destination.droppableId) {
       const sourceColumn = columns[source.droppableId];
       const destColumn = columns[destination.droppableId];
@@ -62,153 +42,219 @@ function App() {
       });
     }
   };
-
-  const [columns, setColumns] = useState(columnsFromBackend);
-
-  const [red, setRed] = useState(false);
-
   function addCard(event) {
-    let item = { id: uuid(), content: "123" };
-    itemsFromBackend.push(item);
+    let item = { id: uuid(), content: "" };
+    cards.push(item);
     const column = columns[event.target.id];
     setColumns({
       ...columns,
       [event.target.id]: {
         ...column,
-        items: [...column.items, item]
+        items: [item, ...column.items]
       }
     });
   }
-
   function changeText(event) {
-    let itemIndex = itemsFromBackend.findIndex(obj => obj.id = event.currentTarget.id);
-    let items = [...itemsFromBackend];
-    items[itemIndex].content = event.currentTarget.textContent;
-    setItemsFromBackend(items);
+    event.preventDefault();
+    let itemIndex = cards.findIndex(obj => obj.id === event.currentTarget.id);
+    cards[itemIndex].content = event.currentTarget.value;
+    event.currentTarget.style.height = "auto";
+    event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
   }
 
+  function deleteCard(cardId, columnId) {
+    const itemIndex = cards.findIndex(obj => obj.id === cardId);
+    cards.splice(itemIndex, 1);
+    const column = columns[columnId];
+    const columnItemIndex = column.items.findIndex(obj => obj.id === cardId);
+    column.items.splice(columnItemIndex, 1);
+    setColumns({
+      ...columns,
+      [columnId]: {
+        ...column,
+        items: [...column.items]
+      }
+    });
+  }
+  function changeTitle(event) {
+    let column = columns[event.currentTarget.id];
+    column.name = event.currentTarget.textContent;
+  }
+  function addColumn() {
+    console.log(columns)
+    let newColumn = {
+      name: "New Column",
+      items: []
+    }
+    columns[uuid()] = newColumn;
+    setColumns({ ...columns });
+  }
+  function deleteColumn(event) {
+    let itemsFromColumn = columns[event.currentTarget.id];
+    let items = [...cards];
+    let newItems = items.filter((val) => !itemsFromColumn.items.includes(val));
+    setCards(newItems);
+    delete columns[event.currentTarget.id];
+  }
+  function tryFinishInput(event) {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    if ((!event.shiftKey && event.key === 'Enter')) {
+      event.preventDefault();
+      event.target.blur();
+      return;
+    }
+  }
+  const blurAll = () => {
+    const elements = document.querySelectorAll('.focusElement');
+    elements.forEach((element) => {
+      element.blur();
+    });
+    const textArea = document.querySelector(".cardText");
+    if (textArea.readOnly) {
+      return;
+    }
+    const editButton = document.querySelector('.editCardButton');
+    editButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  };
+
   return (
-
-    <div style={{ display: "flex", justifyContent: "center", height: "100%" }}>
-      <DragDropContext
-        onDragEnd={result => onDragEnd(result, columns, setColumns)}
-      >
-        {Object.entries(columns).map(([columnId, column]) => {
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center"
-              }}
-              key={columnId}
-            >
-              <h2>{column.name}</h2>
-              <div><button id={columnId} onClick={addCard}> Add new card</button></div>
-              <div style={{
-                margin: 8, display: "flex",
-                flexDirection: 'row',
-              }}
-
+    <div className="wrapper"
+    >
+      <div className="columns">
+        <DragDropContext
+          onDragEnd={(result) => onDragEnd(result, columns, setColumns)}
+        >
+          {Object.entries(columns).map(([columnId, column]) => {
+            return (
+              <div
+                className="column"
+                key={columnId}
               >
-                <Droppable droppableId={columnId} key={columnId}>
-                  {(provided, snapshot) => {
-                    return (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        style={{
-                          background: snapshot.isDraggingOver
-                            ? "lightblue"
-                            : "lightgrey",
-                          padding: 4,
-                          width: 250,
-                          minHeight: 500
-                        }}
-                      >
-                        {column.items.map((item, index) => {
-                          return (
-                            <Draggable
-                              key={item.id}
-                              draggableId={item.id}
-                              index={index}
-                            >
-                              {(provided, snapshot) => {
-                                return (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    style={{
-                                      flex: 1,
-                                      userSelect: "none",
-                                      padding: 16,
-                                      margin: "0 0 8px 0",
-                                      minHeight: "50px",
-                                      position: "relative",
-                                      display: "flex",
-                                      flexDirection: 'row',
-                                      backgroundColor: snapshot.isDragging
-                                        ? "#263B4A"
-                                        : "#456C86",
-                                      color: "white",
-                                      ...provided.draggableProps.style
-                                    }}
-                                  >
-                                    <BsThreeDots
-                                      style={{
-                                        position: "absolute", top: 0, right: "2%",
-                                        backgroundColor: 'transparent',
-                                        cursor: "default",
-                                        color: "white",
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.color = "red";
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.color = "white";
-                                      }}
-                                      onClick={() => { console.log("hello") }}
-                                    />
+                <div
+                  className="columnTitle focusElement"
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  id={columnId}
+                  onInput={changeTitle}
+                  onKeyDown={(event) => tryFinishInput(event)}
+                >
+                  {column.name}
+                </div>
+                <div className="buttons">
+                  <button
+                    id={columnId}
+                    onClick={addCard}
+                    className="button"
+                  >
+                    Add new card
+                  </button>
+                  <button
+                    id={columnId}
+                    onClick={deleteColumn}
+                    className="button">
+                    Delete column
+                  </button>
+                </div>
+                <div
+                  className="columnDataContainer"
+                >
+                  <Droppable droppableId={columnId} key={columnId}>
+                    {(provided, snapshot) => {
+                      return (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className="columnData"
+                        >
+                          {column.items.map((item, index) => {
+                            return (
+                              <Draggable
+                                key={item.id}
+                                draggableId={item.id}
+                                index={index}
+                              >
+                                {(provided, snapshot) => {
+                                  const textAreaRef = React.createRef();
+                                  return (
                                     <div
-                                      id={item.id}
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className="card"
                                       style={{
-                                        cursor: "auto", width: "fit-content",
-                                        maxWidth: "100%"
-
+                                        ...provided.draggableProps.style,
                                       }}
-                                      onFocus={(e) => { e.currentTarget.style.background = "red" }}
-                                      onBlur={(e) => { e.currentTarget.style.background = "#456C86" }}
-                                      onInput={changeText}
-                                      contentEditable={true}
+                                      onMouseDown={blurAll}
                                     >
-                                      {item.content}
-                                    </div>
-                                    {
-
-                                      <div style={{ display: "flex", flexDirection: 'column', position: "absolute", top: 20, right: -10, }}>
-                                        <button>1234455</button>
-                                        <button>12344555</button>
+                                      <textarea
+                                        ref={textAreaRef}
+                                        className="focusElement cardText"
+                                        id={item.id}
+                                        onChange={changeText}
+                                        onKeyDown={(event) => tryFinishInput(event)}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        placeholder="Type text here"
+                                        readOnly
+                                        style={
+                                          {
+                                            cursor: "grab",
+                                            pointerEvents: 'none',
+                                          }
+                                        }
+                                      />
+                                      <div className="cardButtons">
+                                        <AiFillDelete
+                                          className="deleteCardButton"
+                                          onClick={() => deleteCard(item.id, columnId)}
+                                        />
+                                        <AiFillEdit
+                                          className="editCardButton"
+                                          color='white'
+                                          onMouseDown={(event) => {
+                                            event.stopPropagation();
+                                          }}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            if (textAreaRef.current.readOnly) {
+                                              event.currentTarget.style.color = "black"
+                                              textAreaRef.current.readOnly = false;
+                                              textAreaRef.current.style.pointerEvents = "auto";
+                                              textAreaRef.current.style.cursor = "auto";
+                                              textAreaRef.current.style.border = "3px rgb(9, 172, 227) solid"
+                                            }
+                                            else {
+                                              event.currentTarget.style.color = "white"
+                                              textAreaRef.current.readOnly = true;
+                                              textAreaRef.current.style.pointerEvents = "none";
+                                              textAreaRef.current.style.cursor = "grab";
+                                              textAreaRef.current.style.border = "none"
+                                            }
+                                          }}
+                                        />
                                       </div>
-                                    }
-
-                                  </div>
-                                );
-                              }}
-                            </Draggable>
-                          );
-                        })}
-                        {provided.placeholder}
-                      </div>
-                    );
-                  }}
-                </Droppable>
-              </div>
-            </div>
-          );
-        })}
-      </DragDropContext>
-    </div>
+                                    </div>
+                                  );
+                                }}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </div>
+                      );
+                    }}
+                  </Droppable>
+                </div>
+              </div >
+            );
+          })}
+        </DragDropContext >
+      </div >
+      <div className="addColumnButtonContainer" >
+        <button className="addColumnButton button" onClick={addColumn}>Add column</button>
+      </div>
+    </div >
   );
 }
 
